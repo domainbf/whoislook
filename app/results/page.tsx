@@ -1,5 +1,3 @@
-import { whois } from '@/lib/whois';
-
 interface WhoisData {
   domainName?: string;
   creationDate?: string;
@@ -17,7 +15,6 @@ interface WhoisData {
 }
 
 async function fetchWhoisData(domain: string): Promise<WhoisData> {
-  // Remove the unused 'rawData' variable
   const parsedData: WhoisData = {
     domainName: domain,
     creationDate: '2023-01-01',
