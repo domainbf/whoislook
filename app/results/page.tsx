@@ -1,3 +1,5 @@
+import { whois } from '@/lib/whois';
+
 interface WhoisData {
   domainName?: string;
   creationDate?: string;
@@ -15,58 +17,33 @@ interface WhoisData {
 }
 
 async function fetchWhoisData(domain: string): Promise<WhoisData> {
-  const parsedData: WhoisData = {
-    domainName: domain,
-    creationDate: '2023-01-01',
-    updateDate: '2023-06-01',
-    expiryDate: '2024-01-01',
-    domainStatus: ['active'],
-    nameServers: ['ns1.example.com', 'ns2.example.com'],
-    registrar: {
-      name: 'Example Registrar',
-      id: '12345',
-      email: 'support@example.com',
-      phone: '+1234567890',
-      website: 'https://example.com',
-    },
-  };
+  try {
+    const rawData = await whois(domain);
 
-  return parsedData;
-}
+    // 使用健壮的正则表达式解析 WHOIS 原始数据
+    const parsedData: WhoisData = {
+      domainName: rawData.match(/(?:Domain Name|DOMAIN|Domain):\s*([\w.-]+)/i)?.[1]?.trim() || 'Unknown',
+      creationDate: rawData.match(/(?:Creation Date|Registered On|Created On):\s*([\w\s:-]+)/i)?.[1]?.trim() || 'Unknown',
+      updateDate: rawData.match(/(?:Updated Date|Last Updated On|Modified On):\s*([\w\s:-]+)/i)?.[1]?.trim() || 'Unknown',
+      expiryDate: rawData.match(/(?:Expiry Date|Expiration Date|Expires On):\s*([\w\s:-]+)/i)?.[1]?.trim() || 'Unknown',
+      domainStatus: rawData
+        .match(/(?:Domain Status|Status):\s*([\w\s,-]+)/gi)
+        ?.map((status) => status.replace(/(?:Domain Status|Status):/i, '').trim()) || ['Unknown'],
+      nameServers: rawData
+        .match(/(?:Name Server|Nameserver|Nserver):\s*([\w.-]+)/gi)
+        ?.map((ns) => ns.replace(/(?:Name Server|Nameserver|Nserver):/i, '').trim()) || ['Unknown'],
+      registrar: {
+        name: rawData.match(/(?:Registrar|Sponsoring Registrar):\s*([\w\s.-]+)/i)?.[1]?.trim() || 'Unknown',
+        id: rawData.match(/(?:Registrar IANA ID|IANA ID):\s*([\d]+)/i)?.[1]?.trim() || 'Unknown',
+        email: rawData.match(/(?:Registrar Abuse Contact Email|Contact Email):\s*([\w@.-]+)/i)?.[1]?.trim() || 'Unknown',
+        phone: rawData.match(/(?:Registrar Abuse Contact Phone|Contact Phone):\s*([\+\d\s()-]+)/i)?.[1]?.trim() || 'Unknown',
+        website: 'Unknown', // WHOIS 数据中通常没有直接提供注册商网址
+      },
+    };
 
-export default async function ResultsPage({ searchParams }: { searchParams: Promise<{ domain: string }> }) {
-  const params = await searchParams; // 等待 searchParams 解析完成
-  const domain = params?.domain;
-
-  if (!domain) {
-    return <div className="text-center">Please provide a domain name.</div>;
+    return parsedData;
+  } catch (error) {
+    console.error('Error fetching WHOIS data:', error);
+    throw new Error('Failed to fetch WHOIS data.');
   }
-
-  const whoisData = await fetchWhoisData(domain);
-
-  return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-4">WHOIS Lookup Results for {whoisData.domainName}</h1>
-
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h2 className="text-xl font-bold mb-2">Domain Information</h2>
-        <ul className="mb-4">
-          <li>Registration Date: {whoisData.creationDate || 'Unknown'}</li>
-          <li>Last Updated: {whoisData.updateDate || 'Unknown'}</li>
-          <li>Expiry Date: {whoisData.expiryDate || 'Unknown'}</li>
-          <li>Status: {whoisData.domainStatus?.join(', ') || 'Unknown'}</li>
-          <li>Name Servers: {whoisData.nameServers?.join(', ') || 'Unknown'}</li>
-        </ul>
-
-        <h2 className="text-xl font-bold mb-2">Registrar Information</h2>
-        <ul>
-          <li>Registrar: {whoisData.registrar?.name || 'Unknown'}</li>
-          <li>Registrar ID: {whoisData.registrar?.id || 'Unknown'}</li>
-          <li>Email: {whoisData.registrar?.email || 'Unknown'}</li>
-          <li>Phone: {whoisData.registrar?.phone || 'Unknown'}</li>
-          <li>Website: {whoisData.registrar?.website || 'Unknown'}</li>
-        </ul>
-      </div>
-    </div>
-  );
 }
