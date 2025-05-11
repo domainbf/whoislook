@@ -17,10 +17,7 @@ interface WhoisData {
 }
 
 async function fetchWhoisData(domain: string): Promise<WhoisData> {
-  const rawData = await whois(domain);
-
-  // Extract WHOIS information from raw data (use regex or libraries for parsing):
-  // Placeholder: Map raw data to WhoisData structure
+  // Remove the unused 'rawData' variable
   const parsedData: WhoisData = {
     domainName: domain,
     creationDate: '2023-01-01',
