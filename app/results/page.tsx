@@ -10,7 +10,8 @@ export default async function ResultsPage({
     return <div className="text-center py-10">请输入域名</div>;
   }
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_PREFIX || ""}/api/whois?domain=${domain}`);
+  // 注意：如需兼容 SSR，请确保 fetch 可以在服务端用（如 http://127.0.0.1:3000/api/whois）
+  const response = await fetch(`/api/whois?domain=${domain}`, { cache: "no-store" });
   const whoisRaw = await response.text();
   const whois = parseWhoisData(whoisRaw);
 
