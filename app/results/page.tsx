@@ -46,17 +46,17 @@ export default async function ResultsPage({ searchParams }: { searchParams: { do
   const domain = searchParams?.domain;
 
   if (!domain) {
-    return <div className="text-center">Please provide a domain name.</div>;
+    return <div className="text-center text-gray-800">Please provide a domain name.</div>;
   }
 
   const whoisData = await fetchWhoisData(domain);
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-4">WHOIS Lookup Results for {whoisData.domainName}</h1>
+      <h1 className="text-3xl font-bold mb-4 text-gray-800">WHOIS Lookup Results for {whoisData.domainName}</h1>
 
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h2 className="text-xl font-bold mb-2">Domain Information</h2>
+      <div className="bg-gray-50 shadow-md rounded-lg p-6">
+        <h2 className="text-xl font-bold mb-2 text-gray-700">Domain Information</h2>
         <ul className="mb-4">
           <li>Registration Date: {whoisData.creationDate || 'Unknown'}</li>
           <li>Last Updated: {whoisData.updateDate || 'Unknown'}</li>
@@ -65,7 +65,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: { do
           <li>Name Servers: {whoisData.nameServers?.join(", ") || 'Unknown'}</li>
         </ul>
 
-        <h2 className="text-xl font-bold mb-2">Registrar Information</h2>
+        <h2 className="text-xl font-bold mb-2 text-gray-700">Registrar Information</h2>
         <ul>
           <li>Registrar: {whoisData.registrar?.name || 'Unknown'}</li>
           <li>Registrar ID: {whoisData.registrar?.id || 'Unknown'}</li>
