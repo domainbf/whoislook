@@ -1,7 +1,9 @@
 import { parseWhoisData, WhoisData } from '@/lib/whois-parser';
 
-export default async function ResultsPage({ searchParams }: { searchParams: { domain?: string } }) {
-  const domain = searchParams?.domain;
+export default async function ResultsPage({ searchParams }: { searchParams: Promise<{ domain?: string }> }) {
+  // 解包 Promise 类型的 searchParams
+  const params = await searchParams;
+  const domain = params?.domain;
 
   if (!domain) {
     return <div className="text-center py-10">Please provide a domain name.</div>;
