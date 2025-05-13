@@ -22,7 +22,7 @@ export default function HomePage() {
       const response = await fetch(`/api/whois?domain=${domain}`);
       const data = await response.json();
       setWhoisData(data);
-    } catch (error) {
+    } catch {
       setWhoisData({ error: "查询失败，请稍后重试。" });
     } finally {
       setLoading(false);
