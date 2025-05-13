@@ -1,10 +1,10 @@
 import { parseWhoisData } from '@/lib/whois-parser';
 
-type PageProps = {
+export default async function ResultsPage({
+  searchParams,
+}: {
   searchParams?: { domain?: string }
-}
-
-export default async function ResultsPage({ searchParams }: PageProps) {
+}) {
   const domain = searchParams?.domain;
   if (!domain) {
     return <div className="text-center py-10">请输入域名</div>;
