@@ -1,4 +1,4 @@
-import { whois } from '@/lib/whois';
+import { whois } from "@/lib/whois";
 
 interface WhoisData {
   domainName?: string;
@@ -42,15 +42,13 @@ async function fetchWhoisData(domain: string): Promise<WhoisData> {
   return parsedData;
 }
 
-export default async function ResultsPage({ searchParams }: { searchParams: Promise<{ domain: string }> }) {
-  const params = await searchParams;
-  const domain = params?.domain;
+export default async function ResultsPage({ searchParams }: { searchParams: { domain?: string } }) {
+  const domain = searchParams?.domain;
 
   if (!domain) {
     return <div className="text-center">Please provide a domain name.</div>;
   }
 
-  // 调用 fetchWhoisData 函数以获取 WHOIS 数据
   const whoisData = await fetchWhoisData(domain);
 
   return (
@@ -63,8 +61,8 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
           <li>Registration Date: {whoisData.creationDate || 'Unknown'}</li>
           <li>Last Updated: {whoisData.updateDate || 'Unknown'}</li>
           <li>Expiry Date: {whoisData.expiryDate || 'Unknown'}</li>
-          <li>Status: {whoisData.domainStatus?.join(', ') || 'Unknown'}</li>
-          <li>Name Servers: {whoisData.nameServers?.join(', ') || 'Unknown'}</li>
+          <li>Status: {whoisData.domainStatus?.join(", ") || 'Unknown'}</li>
+          <li>Name Servers: {whoisData.nameServers?.join(", ") || 'Unknown'}</li>
         </ul>
 
         <h2 className="text-xl font-bold mb-2">Registrar Information</h2>
