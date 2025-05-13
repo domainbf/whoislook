@@ -42,8 +42,9 @@ async function fetchWhoisData(domain: string): Promise<WhoisData> {
   return parsedData;
 }
 
-export default async function ResultsPage({ searchParams }: { searchParams: { domain?: string } }) {
-  const domain = searchParams?.domain;
+export default async function ResultsPage({ searchParams }: { searchParams: Promise<{ domain?: string }> }) {
+  const params = await searchParams;
+  const domain = params?.domain;
 
   if (!domain) {
     return <div className="text-center">Please provide a domain name.</div>;
