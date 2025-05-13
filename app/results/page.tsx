@@ -1,10 +1,16 @@
 import { parseWhoisData } from '@/lib/whois-parser';
 
-export default async function ResultsPage({ searchParams }: { searchParams: { domain?: string } }) {
-  const domain = searchParams?.domain;
-  if (!domain) return <div className="text-center py-10">请输入域名</div>;
+type PageProps = {
+  searchParams?: { domain?: string }
+}
 
-  const response = await fetch(`/api/whois?domain=${domain}`);
+export default async function ResultsPage({ searchParams }: PageProps) {
+  const domain = searchParams?.domain;
+  if (!domain) {
+    return <div className="text-center py-10">请输入域名</div>;
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_PREFIX || ""}/api/whois?domain=${domain}`);
   const whoisRaw = await response.text();
   const whois = parseWhoisData(whoisRaw);
 
