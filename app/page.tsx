@@ -1,11 +1,10 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+"use client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function HomePage() {
   const router = useRouter();
-  const [domain, setDomain] = useState('');
+  const [domain, setDomain] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
