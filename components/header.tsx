@@ -39,7 +39,6 @@ export default function Header() {
           >
             <Search className='w-5' />
           </button>
-          <script defer src="https://umami-rho-blue.vercel.app/script.js" data-website-id="fac5ccef-6b78-4e6c-a75c-bb64523e89a5"></script>
         </form>
       </div>
     </div>
