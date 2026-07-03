@@ -1,8 +1,7 @@
 import Header from '@/components/header'
 import WhoisResult from '@/components/whois-result'
-import { whois } from '@/lib/whois'
-import { parseWhoisData } from '@/lib/whois-parser'
-import { unstable_cache } from 'next/cache'
+import { lookupDomain } from '@/lib/whois'
+import type { WhoisData } from '@/lib/whois-parser'
 import { AlertTriangle } from 'lucide-react'
 
 export default async function Page({
@@ -12,15 +11,11 @@ export default async function Page({
 }) {
   const { domain } = await params
 
-  const getData = unstable_cache(async () => whois(domain), [domain], {
-    revalidate: 3600,
-  })
-
-  let raw: string | null = null
+  let data: WhoisData | null = null
   let error: string | null = null
 
   try {
-    raw = await getData()
+    data = await lookupDomain(domain)
   } catch (err) {
     error = err instanceof Error ? err.message : '查询失败，请稍后重试'
   }
@@ -37,9 +32,7 @@ export default async function Page({
           </div>
         </div>
       )}
-      {raw !== null && (
-        <WhoisResult domain={domain} data={parseWhoisData(raw)} raw={raw} />
-      )}
+      {data !== null && <WhoisResult domain={domain} data={data} />}
     </>
   )
 }

@@ -97,11 +97,9 @@ function Card({
 export default function WhoisResult({
   domain,
   data,
-  raw,
 }: {
   domain: string
   data: WhoisData
-  raw: string
 }) {
   if (data.isAvailable) {
     return (
@@ -187,12 +185,7 @@ export default function WhoisResult({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card title="注册商信息" icon={Building2}>
           <InfoRow icon={Building2} label="注册商" value={data.registrar.name} />
-          <InfoRow
-            icon={Globe}
-            label="网址"
-            value={data.registrar.website}
-            href={data.registrar.website}
-          />
+          <InfoRow icon={Shield} label="IANA ID" value={data.registrar.ianaId} />
           <InfoRow
             icon={Mail}
             label="投诉邮箱"
@@ -223,7 +216,7 @@ export default function WhoisResult({
                   key={i}
                   className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
                 >
-                  {status.split(' ')[0]}
+                  {status}
                 </span>
               ))}
             </div>
@@ -254,14 +247,16 @@ export default function WhoisResult({
       </div>
 
       {/* 原始数据 */}
-      <details className="mt-6 rounded-xl border border-border bg-card shadow-sm">
-        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-card-foreground">
-          查看原始 WHOIS 数据
-        </summary>
-        <pre className="overflow-x-auto border-t border-border px-5 py-4 text-xs leading-relaxed text-muted-foreground">
-          {raw}
-        </pre>
-      </details>
+      {data.rawJson && (
+        <details className="mt-6 rounded-xl border border-border bg-card shadow-sm">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-card-foreground">
+            查看原始 RDAP 数据
+          </summary>
+          <pre className="overflow-x-auto border-t border-border px-5 py-4 text-xs leading-relaxed text-muted-foreground">
+            {data.rawJson}
+          </pre>
+        </details>
+      )}
     </div>
   )
 }

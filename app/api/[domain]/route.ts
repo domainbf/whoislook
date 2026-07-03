@@ -1,4 +1,4 @@
-import { whois } from '@/lib/whois'
+import { lookupDomain } from '@/lib/whois'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -11,10 +11,10 @@ export async function GET(
   }
 
   try {
-    const data = await whois(domain)
+    const data = await lookupDomain(domain)
     return NextResponse.json(data)
   } catch (error) {
-    console.error('WHOIS lookup failed:', error)
-    return NextResponse.json({ error: 'WHOIS lookup failed' }, { status: 500 })
+    console.error('RDAP lookup failed:', error)
+    return NextResponse.json({ error: 'RDAP lookup failed' }, { status: 500 })
   }
 }

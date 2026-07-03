@@ -1,5 +1,5 @@
-import { parseWhoisData } from '@/lib/whois-parser'
-import { whois as whoisLookup } from '@/lib/whois'
+import { lookupDomain } from '@/lib/whois'
+import type { WhoisData } from '@/lib/whois-parser'
 import WhoisResult from '@/components/whois-result'
 import Header from '@/components/header'
 import { AlertTriangle } from 'lucide-react'
@@ -22,11 +22,11 @@ export default async function ResultsPage({
     )
   }
 
-  let raw: string | null = null
+  let data: WhoisData | null = null
   let error: string | null = null
 
   try {
-    raw = await whoisLookup(domain)
+    data = await lookupDomain(domain)
   } catch (err) {
     error = err instanceof Error ? err.message : '查询失败，请稍后重试'
   }
@@ -43,9 +43,7 @@ export default async function ResultsPage({
           </div>
         </div>
       )}
-      {raw !== null && (
-        <WhoisResult domain={domain} data={parseWhoisData(raw)} raw={raw} />
-      )}
+      {data !== null && <WhoisResult domain={domain} data={data} />}
     </>
   )
 }
