@@ -1,18 +1,17 @@
 import { parseWhoisData } from '@/lib/whois-parser';
+import { whois as whoisLookup } from '@/lib/whois';
 
 export default async function ResultsPage({
   searchParams,
 }: {
-  searchParams?: { domain?: string }
+  searchParams?: Promise<{ domain?: string }>
 }) {
-  const domain = searchParams?.domain;
+  const domain = (await searchParams)?.domain;
   if (!domain) {
     return <div className="text-center py-10">请输入域名</div>;
   }
 
-  // 注意：如需兼容 SSR，请确保 fetch 可以在服务端用（如 http://127.0.0.1:3000/api/whois）
-  const response = await fetch(`/api/whois?domain=${domain}`, { cache: "no-store" });
-  const whoisRaw = await response.text();
+  const whoisRaw = await whoisLookup(domain);
   const whois = parseWhoisData(whoisRaw);
 
   return (
