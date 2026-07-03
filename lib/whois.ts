@@ -42,14 +42,20 @@ async function tryRdap(normalized: string): Promise<WhoisData | null> {
  */
 export async function lookupDomain(domain: string): Promise<WhoisData> {
   const normalized = domain.trim().toLowerCase()
+  const start = Date.now()
 
   // 第一优先：RDAP
   const rdapData = await tryRdap(normalized)
-  if (rdapData) return rdapData
+  if (rdapData) {
+    rdapData.elapsedMs = Date.now() - start
+    return rdapData
+  }
 
   // 回退：端口 43 WHOIS
   try {
-    return await lookupDomainLegacy(normalized)
+    const legacy = await lookupDomainLegacy(normalized)
+    legacy.elapsedMs = Date.now() - start
+    return legacy
   } catch (err) {
     // 两种方式都失败时，抛出可读错误
     throw new Error(

@@ -22,6 +22,8 @@
     --success-foreground: 0 0% 100%;
     --info: 217 91% 55%;
     --info-foreground: 0 0% 100%;
+    --warning: 33 96% 50%;
+    --warning-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 92%;
@@ -50,6 +52,8 @@
     --success-foreground: 0 0% 9%;
     --info: 217 91% 62%;
     --info-foreground: 0 0% 9%;
+    --warning: 33 96% 56%;
+    --warning-foreground: 0 0% 9%;
     --destructive: 0 63% 50%;
     --destructive-foreground: 0 0% 96%;
     --border: 0 0% 18%;

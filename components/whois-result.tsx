@@ -40,13 +40,6 @@ function daysUntil(value?: string) {
   return Math.ceil((d.getTime() - Date.now()) / 86400000)
 }
 
-/** 取可注册根域名（末两段），用于名称服务器提供商标签 */
-function rootDomain(host: string) {
-  const parts = host.split('.')
-  if (parts.length <= 2) return host
-  return parts.slice(-2).join('.')
-}
-
 function faviconOf(website?: string) {
   if (!website) return undefined
   try {
@@ -58,11 +51,13 @@ function faviconOf(website?: string) {
   }
 }
 
-function Field({ label, value, href }: { label: string; value?: string; href?: string }) {
+function Field({ label, value, href, mono }: { label: string; value?: string; href?: string; mono?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-3">
       <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 truncate text-right text-sm font-medium text-foreground">
+      <dd
+        className={`min-w-0 truncate text-right text-sm font-medium text-foreground ${mono ? 'font-mono' : ''}`}
+      >
         {value ? (
           href ? (
             <a href={href} target="_blank" rel="noopener noreferrer" className="text-info hover:underline">
@@ -99,28 +94,29 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
 
   const state = expired
     ? { label: '已过期', dot: 'bg-destructive' }
-    : { label: '正常', dot: 'bg-success' }
+    : { label: '活跃', dot: 'bg-success' }
 
   const statusList = (data.domainStatus ?? []).map(describeStatus)
+  const elapsedSec = data.elapsedMs !== undefined ? (data.elapsedMs / 1000).toFixed(2) : undefined
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
       {/* 概要卡 */}
       <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="pointer-events-none absolute -right-6 -top-6 h-40 w-40 overflow-hidden rounded-full opacity-[0.15]">
-          <Image src="/world-map.png" alt="" width={160} height={160} className="h-full w-full object-cover" />
+        <div className="pointer-events-none absolute right-4 top-4 h-32 w-32 opacity-60 sm:h-40 sm:w-40">
+          <Image
+            src="/globe-wireframe.png"
+            alt=""
+            width={160}
+            height={160}
+            className="h-full w-full object-contain dark:opacity-40 dark:invert"
+          />
         </div>
 
         <div className="relative">
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-border px-3 py-1 font-mono text-xs font-semibold tracking-wide text-foreground">
               DOMAIN
-            </span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-            </span>
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground">
-              <Shield className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
           </div>
 
@@ -139,23 +135,28 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
                 {age} 年
               </span>
             )}
-            {data.source && (
-              <span className="text-xs text-muted-foreground">· 数据来源 {data.source}</span>
-            )}
           </div>
+
+          {(elapsedSec || data.source) && (
+            <p className="mt-3 font-mono text-sm text-muted-foreground">
+              {elapsedSec ? `${elapsedSec}s` : ''}
+              {elapsedSec && data.source ? ' · ' : ''}
+              {data.source ?? ''}
+            </p>
+          )}
 
           {/* 日期 */}
           <div className="mt-6 grid grid-cols-1 gap-5 border-t border-border pt-6 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">创建日期</p>
-              <p className="mt-1 text-xl font-bold text-foreground">{formatDate(data.creationDate)}</p>
+              <p className="mt-1 font-mono text-xl font-bold text-foreground">{formatDate(data.creationDate)}</p>
               {pastRelative(data.creationDate) && (
                 <p className="mt-0.5 text-xs text-muted-foreground">{pastRelative(data.creationDate)}</p>
               )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">过期日期</p>
-              <p className="mt-1 text-xl font-bold text-foreground">{formatDate(data.expiryDate)}</p>
+              <p className="mt-1 font-mono text-xl font-bold text-foreground">{formatDate(data.expiryDate)}</p>
               {expiryDays !== undefined && (
                 <p
                   className={`mt-0.5 text-xs font-medium ${
@@ -168,7 +169,7 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
             </div>
             <div>
               <p className="text-sm text-muted-foreground">更新日期</p>
-              <p className="mt-1 text-xl font-bold text-foreground">{formatDate(data.updatedDate)}</p>
+              <p className="mt-1 font-mono text-xl font-bold text-foreground">{formatDate(data.updatedDate)}</p>
               {pastRelative(data.updatedDate) && (
                 <p className="mt-0.5 text-xs text-muted-foreground">{pastRelative(data.updatedDate)}</p>
               )}
@@ -176,36 +177,88 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
           </div>
 
           {/* 注册人联系 */}
-          <div className="mt-6 grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-2">
-            <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">注册人邮箱</p>
-              <p className="mt-1 truncate text-sm font-medium text-foreground">
-                {data.registrant.email || <span className="text-muted-foreground/50">—</span>}
-              </p>
+          {(data.registrant.email || data.registrant.phone) && (
+            <div className="mt-6 grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-2">
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">注册人邮箱</p>
+                <p className="mt-1 truncate text-sm font-medium text-foreground">
+                  {data.registrant.email || <span className="text-muted-foreground/50">—</span>}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">注册人电话</p>
+                <p className="mt-1 truncate text-sm font-medium text-foreground">
+                  {data.registrant.phone || <span className="text-muted-foreground/50">—</span>}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">注册人电话</p>
-              <p className="mt-1 truncate text-sm font-medium text-foreground">
-                {data.registrant.phone || <span className="text-muted-foreground/50">—</span>}
-              </p>
-            </div>
-          </div>
+          )}
+        </div>
+      </section>
+
+      {/* 域名状态卡 */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Shield className="h-5 w-5 text-foreground" aria-hidden="true" />
+          <h2 className="text-lg font-bold text-foreground">域名状态</h2>
+        </div>
+        {statusList.length > 0 ? (
+          <ul className="space-y-4">
+            {statusList.map((s, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-warning" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold text-foreground">{s.label}</p>
+                  <p className="mt-0.5 font-mono text-sm text-muted-foreground">{s.code}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground/60">无状态信息</p>
+        )}
+      </section>
+
+      {/* NS 服务器卡 */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Server className="h-5 w-5 text-foreground" aria-hidden="true" />
+          <h2 className="text-lg font-bold text-foreground">NS 服务器</h2>
+        </div>
+        {data.nameServers && data.nameServers.length > 0 ? (
+          <ul className="space-y-3">
+            {data.nameServers.map((ns, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-3 rounded-2xl border border-border bg-background/50 px-4 py-3"
+              >
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate font-mono text-sm font-medium text-muted-foreground">
+                  {ns.toLowerCase()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground/60">无域名服务器信息</p>
+        )}
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            DNS 安全扩展
+          </span>
+          <span className="text-sm font-medium text-foreground">
+            {data.dnssec === 'signedDelegation' ? '已签名' : '未签名'}
+          </span>
         </div>
       </section>
 
       {/* 注册商卡 */}
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">注册商</h2>
-          {data.registrar.ianaId && (
-            <span className="rounded-lg bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              IANA: {data.registrar.ianaId}
-            </span>
-          )}
-        </div>
+        <h2 className="text-lg font-bold text-foreground">注册商</h2>
 
         <div className="mt-4 flex items-center gap-4 border-b border-border pb-5">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-foreground">
             {faviconOf(data.registrar.website) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -216,7 +269,7 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
                 className="h-7 w-7"
               />
             ) : (
-              <Building2 className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+              <Building2 className="h-6 w-6 text-background" aria-hidden="true" />
             )}
           </span>
           <div className="min-w-0">
@@ -237,8 +290,9 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
         </div>
 
         <dl className="divide-y divide-border border-b border-border">
-          <Field label="WHOIS 服务器" value={data.whoisServer} />
-          <Field label="注册局域名 ID" value={data.registryDomainId} />
+          <Field label="WHOIS 服务器" value={data.whoisServer} mono />
+          <Field label="注册局 ID" value={data.registryDomainId} mono />
+          <Field label="注册商 IANA ID" value={data.registrar.ianaId} mono />
         </dl>
 
         <div className="pt-4">
@@ -251,66 +305,6 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
             />
             <Field label="电话" value={data.registrar.phone} />
           </dl>
-        </div>
-      </section>
-
-      {/* 状态卡 */}
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <Shield className="h-5 w-5 text-foreground" aria-hidden="true" />
-          <h2 className="text-lg font-bold text-foreground">状态</h2>
-        </div>
-        {statusList.length > 0 ? (
-          <ul className="space-y-4">
-            {statusList.map((s, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-info" aria-hidden="true" />
-                <div>
-                  <p className="font-semibold text-foreground">{s.label}</p>
-                  {s.desc && <p className="mt-0.5 text-sm text-muted-foreground">{s.desc}</p>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground/60">无状态信息</p>
-        )}
-      </section>
-
-      {/* 域名服务器卡 */}
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <Server className="h-5 w-5 text-foreground" aria-hidden="true" />
-          <h2 className="text-lg font-bold text-foreground">域名服务器</h2>
-        </div>
-        {data.nameServers && data.nameServers.length > 0 ? (
-          <ul className="space-y-2">
-            {data.nameServers.map((ns, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-3 rounded-2xl border border-border bg-background/50 px-3 py-2.5"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-info/10 text-sm font-bold text-info">
-                  {ns.charAt(0).toUpperCase()}
-                </span>
-                <span className="min-w-0 flex-1 truncate font-mono text-sm font-medium text-foreground">
-                  {ns.toUpperCase()}
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground">{rootDomain(ns)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground/60">无域名服务器信息</p>
-        )}
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            DNS 安全扩展
-          </span>
-          <span className="text-sm font-medium text-foreground">
-            {data.dnssec === 'signedDelegation' ? '已签名' : '未签名'}
-          </span>
         </div>
       </section>
 

@@ -7,6 +7,7 @@ export interface WhoisData {
   registryDomainId?: string
   whoisServer?: string
   source?: 'rdap' | 'whois'
+  elapsedMs?: number
   registrar: {
     name?: string
     website?: string
