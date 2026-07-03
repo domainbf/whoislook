@@ -4,7 +4,16 @@ export interface WhoisData {
   expiryDate?: string
   updatedDate?: string
   dnssec?: string
-  registrar: { name?: string; website?: string; email?: string; phone?: string; ianaId?: string }
+  registryDomainId?: string
+  whoisServer?: string
+  source?: 'rdap' | 'whois'
+  registrar: {
+    name?: string
+    website?: string
+    email?: string
+    phone?: string
+    ianaId?: string
+  }
   registrant: {
     name?: string
     organization?: string
@@ -16,7 +25,10 @@ export interface WhoisData {
   nameServers?: string[]
   isAvailable: boolean
   rawJson?: string
+  rawText?: string
 }
+
+type RdapLink = { rel?: string; href?: string; value?: string }
 
 type RdapEntity = {
   roles?: string[]
@@ -24,10 +36,13 @@ type RdapEntity = {
   vcardArray?: unknown[]
   entities?: RdapEntity[]
   publicIds?: { type?: string; identifier?: string }[]
+  links?: RdapLink[]
 }
 
 type RdapResponse = {
   ldhName?: string
+  handle?: string
+  port43?: string
   status?: string[]
   events?: { eventAction?: string; eventDate?: string }[]
   nameservers?: { ldhName?: string }[]
@@ -155,8 +170,12 @@ export function parseWhoisText(domain: string, raw: string): WhoisData {
     ]),
     updatedDate: textField(text, ['Updated Date', 'Last Modified', 'changed', 'Last Updated']),
     dnssec: textField(text, ['DNSSEC']),
+    registryDomainId: textField(text, ['Registry Domain ID']),
+    whoisServer: textField(text, ['Registrar WHOIS Server', 'WHOIS Server', 'whois']),
+    source: 'whois',
     registrar: {
       name: textField(text, ['Registrar', 'Sponsoring Registrar', 'registrar']),
+      website: textField(text, ['Registrar URL', 'Registrar Web', 'url']),
       email: textField(text, ['Registrar Abuse Contact Email']),
       phone: textField(text, ['Registrar Abuse Contact Phone']),
       ianaId: textField(text, ['Registrar IANA ID']),
@@ -171,7 +190,7 @@ export function parseWhoisText(domain: string, raw: string): WhoisData {
     domainStatus: status,
     nameServers: textFieldAll(text, ['Name Server', 'Nameserver', 'nserver', 'ns']),
     isAvailable: false,
-    rawJson: text,
+    rawText: text,
   }
 }
 
@@ -186,11 +205,20 @@ export function parseRdapData(domain: string, json: RdapResponse): WhoisData {
   // registrar 的滥用联系通常在其嵌套的 abuse 实体里
   const abuse = findEntity(registrar?.entities, 'abuse')
 
+  // registrar 网址：优先 vcard url，其次 links 中 rel=about
+  const registrarUrl =
+    vcardValue(registrar?.vcardArray, 'url') ??
+    registrar?.links?.find((l) => l.rel === 'about')?.href ??
+    registrar?.links?.find((l) => l.href)?.href
+
   return {
     domainName: json.ldhName?.toLowerCase() ?? domain,
     creationDate: eventDate(json.events, 'registration'),
     expiryDate: eventDate(json.events, 'expiration'),
     updatedDate: eventDate(json.events, 'last changed'),
+    registryDomainId: json.handle,
+    whoisServer: json.port43,
+    source: 'rdap',
     dnssec:
       json.secureDNS?.delegationSigned === true
         ? 'signedDelegation'
@@ -199,6 +227,7 @@ export function parseRdapData(domain: string, json: RdapResponse): WhoisData {
           : undefined,
     registrar: {
       name: vcardValue(registrar?.vcardArray, 'fn'),
+      website: registrarUrl,
       email: vcardValue(abuse?.vcardArray, 'email') ?? vcardValue(registrar?.vcardArray, 'email'),
       phone: vcardValue(abuse?.vcardArray, 'tel') ?? vcardValue(registrar?.vcardArray, 'tel'),
       ianaId: registrarIanaId,

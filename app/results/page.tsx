@@ -1,8 +1,10 @@
+import { AlertTriangle } from 'lucide-react'
+import RecordHistory from '@/components/record-history'
+import SearchBox from '@/components/search-box'
+import SiteHeader from '@/components/site-header'
+import WhoisResult from '@/components/whois-result'
 import { lookupDomain } from '@/lib/whois'
 import type { WhoisData } from '@/lib/whois-parser'
-import WhoisResult from '@/components/whois-result'
-import Header from '@/components/header'
-import { AlertTriangle } from 'lucide-react'
 
 export default async function ResultsPage({
   searchParams,
@@ -13,12 +15,12 @@ export default async function ResultsPage({
 
   if (!domain) {
     return (
-      <>
-        <Header />
-        <div className="mx-auto max-w-4xl px-4 py-8 text-center text-muted-foreground">
-          请输入域名
+      <main className="min-h-dvh bg-dots">
+        <SiteHeader />
+        <div className="mx-auto mt-8 max-w-2xl px-4">
+          <SearchBox />
         </div>
-      </>
+      </main>
     )
   }
 
@@ -32,11 +34,15 @@ export default async function ResultsPage({
   }
 
   return (
-    <>
-      <Header />
+    <main className="min-h-dvh bg-dots">
+      <SiteHeader />
+      <RecordHistory domain={domain} />
+      <div className="mx-auto mt-8 max-w-2xl px-4">
+        <SearchBox />
+      </div>
       {error && (
-        <div className="mx-auto max-w-4xl px-4 py-8">
-          <div className="flex flex-col items-center rounded-xl border border-destructive/30 bg-destructive/5 p-10 text-center">
+        <div className="mx-auto max-w-2xl px-4 py-8">
+          <div className="flex flex-col items-center rounded-3xl border border-destructive/30 bg-destructive/5 p-10 text-center">
             <AlertTriangle className="h-12 w-12 text-destructive" aria-hidden="true" />
             <h1 className="mt-4 text-xl font-bold text-foreground">查询失败</h1>
             <p className="mt-2 text-sm text-muted-foreground">{error}</p>
@@ -44,6 +50,6 @@ export default async function ResultsPage({
         </div>
       )}
       {data !== null && <WhoisResult domain={domain} data={data} />}
-    </>
+    </main>
   )
 }

@@ -1,0 +1,80 @@
+'use client'
+
+import { Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import { addHistory } from '@/lib/search-history'
+
+export default function SearchBox() {
+  const router = useRouter()
+  const [value, setValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // 键盘快捷键：/ 聚焦，Esc 清除/失焦
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === '/' && document.activeElement !== inputRef.current) {
+        e.preventDefault()
+        inputRef.current?.focus()
+      } else if (e.key === 'Escape' && document.activeElement === inputRef.current) {
+        setValue('')
+        inputRef.current?.blur()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const domain = value.trim().toLowerCase()
+    if (!domain) return
+    addHistory(domain)
+    router.push(`/${encodeURIComponent(domain)}`)
+  }
+
+  return (
+    <form onSubmit={submit} className="mx-auto w-full max-w-2xl">
+      <div className="flex items-center gap-2 rounded-full border border-border bg-card py-2 pl-5 pr-2 shadow-sm transition-shadow focus-within:shadow-md">
+        <Search className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <kbd className="hidden shrink-0 rounded-md border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground sm:inline-block">
+          /
+        </kbd>
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing || e.keyCode === 229) return
+          }}
+          type="text"
+          inputMode="url"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          placeholder="输入域名进行查询，例如 example.com"
+          aria-label="域名"
+          className="min-w-0 flex-1 bg-transparent py-2 text-base text-foreground outline-none placeholder:text-muted-foreground"
+        />
+        <button
+          type="submit"
+          aria-label="查询"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <Search className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="mt-4 flex items-center justify-center gap-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          查询
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">/</kbd>
+        </span>
+        <span className="flex items-center gap-1.5">
+          清除 / 失焦
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">Esc</kbd>
+        </span>
+      </div>
+    </form>
+  )
+}
