@@ -3,10 +3,12 @@
 import { Loader2, Search, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { useI18n } from '@/components/language-provider'
 import { normalizeDomain } from '@/lib/normalize-domain'
 import { addHistory } from '@/lib/search-history'
 
 export default function SearchBox() {
+  const { t } = useI18n()
   const router = useRouter()
   const pathname = usePathname()
   const [value, setValue] = useState('')
@@ -66,15 +68,15 @@ export default function SearchBox() {
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
-          placeholder="输入域名进行查询，例如 example.com"
-          aria-label="域名"
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('domain')}
           className="min-w-0 flex-1 bg-transparent py-2 text-base text-foreground outline-none placeholder:text-muted-foreground"
         />
         {value && !loading && (
           <button
             type="button"
             onClick={clear}
-            aria-label="清除"
+            aria-label={t('clear')}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -82,7 +84,7 @@ export default function SearchBox() {
         )}
         <button
           type="submit"
-          aria-label="查询"
+          aria-label={t('query')}
           disabled={loading}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-80"
         >
@@ -96,11 +98,11 @@ export default function SearchBox() {
 
       <div className="mt-4 flex items-center justify-center gap-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          查询
+          {t('query')}
           <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">/</kbd>
         </span>
         <span className="flex items-center gap-1.5">
-          清除 / 失焦
+          {t('clearBlur')}
           <kbd className="rounded border border-border bg-muted px-1.5 py-0.5">Esc</kbd>
         </span>
       </div>

@@ -3,24 +3,30 @@
 import { ChevronLeft, ChevronRight, Globe } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useI18n } from '@/components/language-provider'
 import { clearHistory, getHistory, type HistoryItem } from '@/lib/search-history'
 
 const PAGE_SIZE = 6
 
-function relativeTime(time: number): string {
-  const d = new Date(time)
-  const now = new Date()
-  const sameDay = d.toDateString() === now.toDateString()
-  const hh = d.getHours().toString().padStart(2, '0')
-  const mm = d.getMinutes().toString().padStart(2, '0')
-  if (sameDay) return `今天 ${hh}:${mm}`
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  if (d.toDateString() === yesterday.toDateString()) return `昨天 ${hh}:${mm}`
-  return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) + ` ${hh}:${mm}`
-}
-
 export default function SearchHistory() {
+  const { lang, t } = useI18n()
+
+  function relativeTime(time: number): string {
+    const d = new Date(time)
+    const now = new Date()
+    const sameDay = d.toDateString() === now.toDateString()
+    const hh = d.getHours().toString().padStart(2, '0')
+    const mm = d.getMinutes().toString().padStart(2, '0')
+    if (sameDay) return `${t('today')} ${hh}:${mm}`
+    const yesterday = new Date(now)
+    yesterday.setDate(now.getDate() - 1)
+    if (d.toDateString() === yesterday.toDateString()) return `${t('yesterday')} ${hh}:${mm}`
+    return (
+      d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { month: '2-digit', day: '2-digit' }) +
+      ` ${hh}:${mm}`
+    )
+  }
+
   const [items, setItems] = useState<HistoryItem[]>([])
   const [page, setPage] = useState(0)
   const [mounted, setMounted] = useState(false)
@@ -40,7 +46,7 @@ export default function SearchHistory() {
     <section className="mx-auto mt-14 w-full max-w-2xl">
       <div className="mb-5 flex items-center gap-4">
         <span className="h-px flex-1 bg-border" aria-hidden="true" />
-        <h2 className="text-sm font-semibold text-muted-foreground">查询历史</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">{t('historyTitle')}</h2>
         <span className="h-px flex-1 bg-border" aria-hidden="true" />
       </div>
 
@@ -73,7 +79,7 @@ export default function SearchHistory() {
             type="button"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={current === 0}
-            aria-label="上一页"
+            aria-label={t('prevPage')}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -85,7 +91,7 @@ export default function SearchHistory() {
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={current === totalPages - 1}
-            aria-label="下一页"
+            aria-label={t('nextPage')}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -102,7 +108,7 @@ export default function SearchHistory() {
           }}
           className="text-sm text-muted-foreground transition-colors hover:text-destructive"
         >
-          清除历史记录
+          {t('clearHistory')}
         </button>
       </div>
     </section>

@@ -2,6 +2,7 @@
 
 import { Check, Copy, Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useI18n } from '@/components/language-provider'
 
 export default function RawDataViewer({
   domain,
@@ -12,6 +13,7 @@ export default function RawDataViewer({
   rawJson?: string
   rawText?: string
 }) {
+  const { t } = useI18n()
   const tabs = useMemo(() => {
     const list: { key: 'rdap' | 'whois'; label: string; content: string }[] = []
     if (rawJson) list.push({ key: 'rdap', label: 'RDAP', content: rawJson })
@@ -74,7 +76,7 @@ export default function RawDataViewer({
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            保存
+            {t('save')}
           </button>
           <button
             type="button"
@@ -86,7 +88,7 @@ export default function RawDataViewer({
             ) : (
               <Copy className="h-4 w-4" aria-hidden="true" />
             )}
-            {copied ? '已复制' : '复制'}
+            {copied ? t('copied') : t('copy')}
           </button>
         </div>
       </div>

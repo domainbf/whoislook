@@ -25,6 +25,8 @@ export interface WhoisData {
   domainStatus?: string[]
   nameServers?: string[]
   isAvailable: boolean
+  /** 更细粒度的可用性：已注册 / 可注册 / 已保留 / 禁止注册 */
+  availability?: 'registered' | 'available' | 'reserved' | 'prohibited'
   rawJson?: string
   rawText?: string
 }
@@ -177,13 +179,51 @@ function textFieldAll(text: string, keys: string[]): string[] {
 export function parseWhoisText(domain: string, raw: string): WhoisData {
   const text = raw ?? ''
 
+  // 判断域名被保留（注册局保留，暂不可公开注册）
+  const reserved =
+    /(reserved (?:name|domain|by)|is reserved|Reserved Domain Name|restricted for registration|该域名已被保留|保留域名|registry reserved|reserved for registry)/i.test(
+      text,
+    )
+  if (reserved) {
+    return {
+      domainName: domain,
+      isAvailable: false,
+      availability: 'reserved',
+      registrar: {},
+      registrant: {},
+      rawText: text,
+    }
+  }
+
+  // 判断域名被禁止/限制注册
+  const prohibited =
+    /(prohibited from registration|blocked for registration|registration (?:is )?(?:not allowed|forbidden|prohibited)|禁止注册|不允许注册|banned)/i.test(
+      text,
+    )
+  if (prohibited) {
+    return {
+      domainName: domain,
+      isAvailable: false,
+      availability: 'prohibited',
+      registrar: {},
+      registrant: {},
+      rawText: text,
+    }
+  }
+
   // 判断域名是否未注册（可注册）
   const notFound =
     /(No match for|NOT FOUND|No Data Found|Domain not found|No entries found|is free|Status:\s*free|No such domain|not registered|Domain Status:\s*No Object Found|available for registration|nothing found)/i.test(
       text,
     )
   if (notFound) {
-    return { domainName: domain, isAvailable: true, registrar: {}, registrant: {} }
+    return {
+      domainName: domain,
+      isAvailable: true,
+      availability: 'available',
+      registrar: {},
+      registrant: {},
+    }
   }
 
   const status = textFieldAll(text, ['Domain Status', 'Status', 'state'])
@@ -278,6 +318,7 @@ export function parseWhoisText(domain: string, raw: string): WhoisData {
       'Domain servers in listed order',
     ]),
     isAvailable: false,
+    availability: 'registered',
     rawText: text,
   }
 }
@@ -332,6 +373,7 @@ export function parseRdapData(domain: string, json: RdapResponse): WhoisData {
       .map((n) => n.ldhName?.toLowerCase())
       .filter((n): n is string => Boolean(n)),
     isAvailable: false,
+    availability: 'registered',
     rawJson: JSON.stringify(json, null, 2),
   }
 }

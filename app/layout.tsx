@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { LanguageProvider } from '@/components/language-provider'
+import { getLang } from '@/lib/get-lang'
 import './globals.css'
 
 const geistSans = Geist({
@@ -35,17 +37,25 @@ const themeScript = `
 })();
 `
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const lang = await getLang()
+
   return (
-    <html lang="zh-CN" className={`bg-background ${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang={lang === 'zh' ? 'zh-CN' : 'en'}
+      className={`bg-background ${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <LanguageProvider initialLang={lang}>{children}</LanguageProvider>
+      </body>
     </html>
   )
 }

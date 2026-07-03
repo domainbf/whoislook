@@ -1,7 +1,11 @@
-import { Building2, CheckCircle2, Clock, Server, Shield, ShieldCheck } from 'lucide-react'
-import Image from 'next/image'
+import { Ban, Building2, CheckCircle2, Clock, Lock, Server, Shield, ShieldCheck } from 'lucide-react'
+import { Suspense } from 'react'
+import PriceSection from '@/components/price-section'
 import RawDataViewer from '@/components/raw-data-viewer'
+import SpinningGlobe from '@/components/spinning-globe'
 import { describeStatus } from '@/lib/domain-status'
+import { getLang } from '@/lib/get-lang'
+import { createT, type TFunc } from '@/lib/i18n'
 import type { WhoisData } from '@/lib/whois-parser'
 
 function toDate(value?: string) {
@@ -16,16 +20,16 @@ function formatDate(value?: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** 相对当前的过去时间描述，如 "29年前"、"2个月前"、"5天前" */
-function pastRelative(value?: string) {
+/** 相对当前的过去时间描述 */
+function pastRelative(value: string | undefined, t: TFunc) {
   const d = toDate(value)
   if (!d) return undefined
   const days = Math.floor((Date.now() - d.getTime()) / 86400000)
   if (days < 0) return undefined
-  if (days >= 365) return `${Math.floor(days / 365)}年前`
-  if (days >= 30) return `${Math.floor(days / 30)}个月前`
-  if (days >= 1) return `${days}天前`
-  return '今天'
+  if (days >= 365) return t('yearsAgo', { n: Math.floor(days / 365) })
+  if (days >= 30) return t('monthsAgo', { n: Math.floor(days / 30) })
+  if (days >= 1) return t('daysAgo', { n: days })
+  return t('todayRel')
 }
 
 function yearsSince(value?: string) {
@@ -74,15 +78,85 @@ function Field({ label, value, href, mono }: { label: string; value?: string; hr
   )
 }
 
-export default function WhoisResult({ domain, data }: { domain: string; data: WhoisData }) {
-  if (data.isAvailable) {
+/** 价格卡加载骨架 */
+function PriceSkeleton() {
+  return (
+    <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+      <div className="mb-4 h-6 w-28 animate-pulse rounded-full bg-muted" />
+      <div className="space-y-2.5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-14 animate-pulse rounded-2xl bg-muted/60" />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** 可用性提示卡（可注册 / 已保留 / 禁止注册） */
+function AvailabilityCard({
+  domain,
+  kind,
+  t,
+}: {
+  domain: string
+  kind: 'available' | 'reserved' | 'prohibited'
+  t: TFunc
+}) {
+  const config = {
+    available: {
+      Icon: CheckCircle2,
+      color: 'text-success',
+      ring: 'border-success/30 bg-success/5',
+      title: t('availableTitle'),
+      desc: t('availableDesc'),
+    },
+    reserved: {
+      Icon: Lock,
+      color: 'text-warning',
+      ring: 'border-warning/30 bg-warning/5',
+      title: t('reservedTitle'),
+      desc: t('reservedDesc'),
+    },
+    prohibited: {
+      Icon: Ban,
+      color: 'text-destructive',
+      ring: 'border-destructive/30 bg-destructive/5',
+      title: t('prohibitedTitle'),
+      desc: t('prohibitedDesc'),
+    },
+  }[kind]
+
+  const { Icon } = config
+
+  return (
+    <div className={`flex flex-col items-center rounded-3xl border p-8 text-center shadow-sm ${config.ring}`}>
+      <Icon className={`h-12 w-12 ${config.color}`} aria-hidden="true" />
+      <h1 className="mt-4 w-full break-all text-xl font-bold text-card-foreground sm:text-2xl">
+        {domain}
+      </h1>
+      <p className="mt-1 text-base font-semibold text-foreground">{config.title}</p>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">{config.desc}</p>
+    </div>
+  )
+}
+
+export default async function WhoisResult({ domain, data }: { domain: string; data: WhoisData }) {
+  const lang = await getLang()
+  const t = createT(lang)
+
+  const availability =
+    data.availability ?? (data.isAvailable ? 'available' : 'registered')
+
+  // 未注册 / 已保留 / 禁止注册
+  if (availability !== 'registered') {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="flex flex-col items-center rounded-3xl border border-border bg-card p-10 text-center shadow-sm">
-          <CheckCircle2 className="h-12 w-12 text-success" aria-hidden="true" />
-          <h1 className="mt-4 text-2xl font-bold text-card-foreground">{domain}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">该域名目前可注册（未找到注册记录）</p>
-        </div>
+      <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
+        <AvailabilityCard domain={domain} kind={availability} t={t} />
+        {availability === 'available' && (
+          <Suspense fallback={<PriceSkeleton />}>
+            <PriceSection domain={domain} />
+          </Suspense>
+        )}
       </div>
     )
   }
@@ -93,24 +167,18 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
   const expired = expiryDays !== undefined && expiryDays < 0
 
   const state = expired
-    ? { label: '已过期', dot: 'bg-destructive' }
-    : { label: '活跃', dot: 'bg-success' }
+    ? { label: t('expired'), dot: 'bg-destructive' }
+    : { label: t('active'), dot: 'bg-success' }
 
-  const statusList = (data.domainStatus ?? []).map(describeStatus)
+  const statusList = (data.domainStatus ?? []).map((s) => describeStatus(s, lang))
   const elapsedSec = data.elapsedMs !== undefined ? (data.elapsedMs / 1000).toFixed(2) : undefined
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
       {/* 概要卡 */}
       <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="pointer-events-none absolute right-4 top-4 h-28 w-28 opacity-60 sm:h-36 sm:w-36">
-          <Image
-            src="/globe-wireframe.png"
-            alt=""
-            width={160}
-            height={160}
-            className="h-full w-full animate-spin-slow object-contain dark:opacity-40 dark:invert"
-          />
+        <div className="pointer-events-none absolute right-3 top-3 h-24 w-24 text-muted-foreground/40 sm:h-32 sm:w-32">
+          <SpinningGlobe className="h-full w-full" />
         </div>
 
         <div className="relative">
@@ -120,7 +188,7 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
             </span>
           </div>
 
-          <h1 className="mt-3 break-all text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="mt-3 max-w-[calc(100%-4rem)] break-all text-2xl font-bold tracking-tight text-foreground sm:max-w-[calc(100%-6rem)] sm:text-3xl">
             {displayName}
           </h1>
 
@@ -132,7 +200,7 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
             {age !== undefined && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                {age} 年
+                {t('ageYears', { n: age })}
               </span>
             )}
           </div>
@@ -148,16 +216,16 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
           {/* 日期 */}
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-border pt-6">
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">创建日期</p>
+              <p className="text-xs text-muted-foreground">{t('createdDate')}</p>
               <p className="mt-1 w-fit max-w-full truncate border-b border-dashed border-border pb-0.5 font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 {formatDate(data.creationDate)}
               </p>
-              {pastRelative(data.creationDate) && (
-                <p className="mt-1 text-xs text-muted-foreground">{pastRelative(data.creationDate)}</p>
+              {pastRelative(data.creationDate, t) && (
+                <p className="mt-1 text-xs text-muted-foreground">{pastRelative(data.creationDate, t)}</p>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">到期日期</p>
+              <p className="text-xs text-muted-foreground">{t('expiryDate')}</p>
               <p className="mt-1 w-fit max-w-full truncate border-b border-dashed border-border pb-0.5 font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 {formatDate(data.expiryDate)}
               </p>
@@ -167,17 +235,19 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
                     expired ? 'text-destructive' : 'text-success'
                   }`}
                 >
-                  {expired ? `已过期 ${Math.abs(expiryDays)} 天` : `剩余 ${expiryDays} 天`}
+                  {expired
+                    ? t('expiredDays', { n: Math.abs(expiryDays) })
+                    : t('daysLeft', { n: expiryDays })}
                 </p>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">更新日期</p>
+              <p className="text-xs text-muted-foreground">{t('updatedDate')}</p>
               <p className="mt-1 w-fit max-w-full truncate border-b border-dashed border-border pb-0.5 font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 {formatDate(data.updatedDate)}
               </p>
-              {pastRelative(data.updatedDate) && (
-                <p className="mt-1 text-xs text-muted-foreground">{pastRelative(data.updatedDate)}</p>
+              {pastRelative(data.updatedDate, t) && (
+                <p className="mt-1 text-xs text-muted-foreground">{pastRelative(data.updatedDate, t)}</p>
               )}
             </div>
           </div>
@@ -186,13 +256,13 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
           {(data.registrant.email || data.registrant.phone) && (
             <div className="mt-6 grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-2">
               <div className="min-w-0">
-                <p className="text-sm text-muted-foreground">注册人邮箱</p>
+                <p className="text-sm text-muted-foreground">{t('registrantEmail')}</p>
                 <p className="mt-1 truncate text-sm font-medium text-foreground">
                   {data.registrant.email || <span className="text-muted-foreground/50">—</span>}
                 </p>
               </div>
               <div className="min-w-0">
-                <p className="text-sm text-muted-foreground">注册人电话</p>
+                <p className="text-sm text-muted-foreground">{t('registrantPhone')}</p>
                 <p className="mt-1 truncate text-sm font-medium text-foreground">
                   {data.registrant.phone || <span className="text-muted-foreground/50">—</span>}
                 </p>
@@ -206,22 +276,22 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <Shield className="h-5 w-5 text-foreground" aria-hidden="true" />
-          <h2 className="text-lg font-bold text-foreground">域名状态</h2>
+          <h2 className="text-lg font-bold text-foreground">{t('statusTitle')}</h2>
         </div>
         {statusList.length > 0 ? (
           <ul className="space-y-4">
             {statusList.map((s, i) => (
               <li key={i} className="flex gap-3">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-warning" aria-hidden="true" />
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-foreground">{s.label}</p>
-                  <p className="mt-0.5 font-mono text-sm text-muted-foreground">{s.code}</p>
+                  <p className="mt-0.5 break-all font-mono text-sm text-muted-foreground">{s.code}</p>
                 </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground/60">无状态信息</p>
+          <p className="text-sm text-muted-foreground/60">{t('noStatus')}</p>
         )}
       </section>
 
@@ -229,7 +299,7 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <Server className="h-5 w-5 text-foreground" aria-hidden="true" />
-          <h2 className="text-lg font-bold text-foreground">NS 服务器</h2>
+          <h2 className="text-lg font-bold text-foreground">{t('nsTitle')}</h2>
         </div>
         {data.nameServers && data.nameServers.length > 0 ? (
           <ul className="space-y-3">
@@ -246,22 +316,27 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground/60">无域名服务器信息</p>
+          <p className="text-sm text-muted-foreground/60">{t('noNs')}</p>
         )}
         <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            DNS 安全扩展
+            {t('dnssec')}
           </span>
           <span className="text-sm font-medium text-foreground">
-            {data.dnssec === 'signedDelegation' ? '已签名' : '未签名'}
+            {data.dnssec === 'signedDelegation' ? t('signed') : t('unsigned')}
           </span>
         </div>
       </section>
 
+      {/* 后缀价格卡（流式加载，不阻塞上方结果） */}
+      <Suspense fallback={<PriceSkeleton />}>
+        <PriceSection domain={data.domainName || domain} />
+      </Suspense>
+
       {/* 注册商卡 */}
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-foreground">注册商</h2>
+        <h2 className="text-lg font-bold text-foreground">{t('registrarTitle')}</h2>
 
         <div className="mt-4 flex items-center gap-4 border-b border-border pb-5">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-foreground">
@@ -280,14 +355,14 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
           </span>
           <div className="min-w-0">
             <p className="truncate text-lg font-bold text-foreground">
-              {data.registrar.name || '未知注册商'}
+              {data.registrar.name || t('unknownRegistrar')}
             </p>
             {data.registrar.website && (
               <a
                 href={data.registrar.website.startsWith('http') ? data.registrar.website : `http://${data.registrar.website}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="truncate text-sm text-info hover:underline"
+                className="block truncate text-sm text-info hover:underline"
               >
                 {data.registrar.website}
               </a>
@@ -296,20 +371,20 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
         </div>
 
         <dl className="divide-y divide-border border-b border-border">
-          <Field label="WHOIS 服务器" value={data.whoisServer} mono />
-          <Field label="注册局 ID" value={data.registryDomainId} mono />
-          <Field label="注册商 IANA ID" value={data.registrar.ianaId} mono />
+          <Field label={t('whoisServer')} value={data.whoisServer} mono />
+          <Field label={t('registryId')} value={data.registryDomainId} mono />
+          <Field label={t('ianaId')} value={data.registrar.ianaId} mono />
         </dl>
 
         <div className="pt-4">
-          <p className="mb-1 text-sm font-medium text-muted-foreground">滥用联系</p>
+          <p className="mb-1 text-sm font-medium text-muted-foreground">{t('abuseContact')}</p>
           <dl className="divide-y divide-border">
             <Field
-              label="邮箱"
+              label={t('email')}
               value={data.registrar.email}
               href={data.registrar.email ? `mailto:${data.registrar.email}` : undefined}
             />
-            <Field label="电话" value={data.registrar.phone} />
+            <Field label={t('phone')} value={data.registrar.phone} />
           </dl>
         </div>
       </section>
