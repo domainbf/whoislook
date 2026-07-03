@@ -146,20 +146,24 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
           )}
 
           {/* 日期 */}
-          <div className="mt-6 grid grid-cols-1 gap-5 border-t border-border pt-6 sm:grid-cols-2">
-            <div>
+          <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-border pt-6">
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">创建日期</p>
-              <p className="mt-1 font-mono text-xl font-bold text-foreground">{formatDate(data.creationDate)}</p>
+              <p className="mt-1.5 w-fit max-w-full truncate border-b border-dashed border-border pb-1 font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                {formatDate(data.creationDate)}
+              </p>
               {pastRelative(data.creationDate) && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{pastRelative(data.creationDate)}</p>
+                <p className="mt-1.5 text-xs text-muted-foreground">{pastRelative(data.creationDate)}</p>
               )}
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">过期日期</p>
-              <p className="mt-1 font-mono text-xl font-bold text-foreground">{formatDate(data.expiryDate)}</p>
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">到期日期</p>
+              <p className="mt-1.5 w-fit max-w-full truncate border-b border-dashed border-border pb-1 font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                {formatDate(data.expiryDate)}
+              </p>
               {expiryDays !== undefined && (
                 <p
-                  className={`mt-0.5 text-xs font-medium ${
+                  className={`mt-1.5 text-xs font-medium ${
                     expired ? 'text-destructive' : 'text-success'
                   }`}
                 >
@@ -167,11 +171,13 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
                 </p>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">更新日期</p>
-              <p className="mt-1 font-mono text-xl font-bold text-foreground">{formatDate(data.updatedDate)}</p>
+              <p className="mt-1.5 w-fit max-w-full truncate border-b border-dashed border-border pb-1 font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                {formatDate(data.updatedDate)}
+              </p>
               {pastRelative(data.updatedDate) && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{pastRelative(data.updatedDate)}</p>
+                <p className="mt-1.5 text-xs text-muted-foreground">{pastRelative(data.updatedDate)}</p>
               )}
             </div>
           </div>

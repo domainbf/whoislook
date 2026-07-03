@@ -1,14 +1,21 @@
 'use client'
 
-import { Search } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Loader2, Search, X } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { addHistory } from '@/lib/search-history'
 
 export default function SearchBox() {
   const router = useRouter()
+  const pathname = usePathname()
   const [value, setValue] = useState('')
+  const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // 路由变化后（结果页已加载）解除加载态
+  useEffect(() => {
+    setLoading(false)
+  }, [pathname])
 
   // 键盘快捷键：/ 聚焦，Esc 清除/失焦
   useEffect(() => {
@@ -28,9 +35,15 @@ export default function SearchBox() {
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const domain = value.trim().toLowerCase()
-    if (!domain) return
+    if (!domain || loading) return
+    setLoading(true)
     addHistory(domain)
     router.push(`/${encodeURIComponent(domain)}`)
+  }
+
+  function clear() {
+    setValue('')
+    inputRef.current?.focus()
   }
 
   return (
@@ -56,12 +69,27 @@ export default function SearchBox() {
           aria-label="域名"
           className="min-w-0 flex-1 bg-transparent py-2 text-base text-foreground outline-none placeholder:text-muted-foreground"
         />
+        {value && !loading && (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="清除"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
         <button
           type="submit"
           aria-label="查询"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90"
+          disabled={loading}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-80"
         >
-          <Search className="h-5 w-5" aria-hidden="true" />
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+          ) : (
+            <Search className="h-5 w-5" aria-hidden="true" />
+          )}
         </button>
       </div>
 
