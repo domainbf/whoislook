@@ -14,8 +14,13 @@ function hasUsefulData(data: WhoisData): boolean {
   )
 }
 
-/** 尝试用 RDAP（HTTPS/443）查询，失败或无数据时返回 null 以便回退 */
-async function tryRdap(normalized: string): Promise<WhoisData | null> {
+type RdapResult =
+  | { status: 'found'; data: WhoisData }
+  | { status: 'notfound' } // RDAP 明确 404：查无此域名
+  | { status: 'error' } // 网络/解析失败，无法判定
+
+/** 尝试用 RDAP（HTTPS/443）查询，返回细分状态以便上层决策 */
+async function tryRdap(normalized: string): Promise<RdapResult> {
   try {
     const res = await fetch(`${RDAP_BOOTSTRAP}${encodeURIComponent(normalized)}`, {
       redirect: 'follow',
@@ -23,16 +28,15 @@ async function tryRdap(normalized: string): Promise<WhoisData | null> {
       next: { revalidate: 3600 },
     })
 
-    // 404 表示 RDAP 明确查无此域名 —— 但部分 ccTLD 无 RDAP 服务，
-    // 交给上层回退到端口 43 再确认，避免误报"可注册"
-    if (res.status === 404) return null
-    if (!res.ok) return null
+    // 404 表示 RDAP 明确查无此域名（对 gTLD 权威，对无 RDAP 的 ccTLD 需再确认）
+    if (res.status === 404) return { status: 'notfound' }
+    if (!res.ok) return { status: 'error' }
 
     const json = await res.json()
     const data = parseRdapData(normalized, json)
-    return hasUsefulData(data) ? data : null
+    return hasUsefulData(data) ? { status: 'found', data } : { status: 'notfound' }
   } catch {
-    return null
+    return { status: 'error' }
   }
 }
 
@@ -45,19 +49,43 @@ export async function lookupDomain(domain: string): Promise<WhoisData> {
   const start = Date.now()
 
   // 第一优先：RDAP
-  const rdapData = await tryRdap(normalized)
-  if (rdapData) {
-    rdapData.elapsedMs = Date.now() - start
-    return rdapData
+  const rdap = await tryRdap(normalized)
+  if (rdap.status === 'found') {
+    rdap.data.elapsedMs = Date.now() - start
+    return rdap.data
   }
 
   // 回退：端口 43 WHOIS
   try {
     const legacy = await lookupDomainLegacy(normalized)
+    // WHOIS 返回但无有效数据，且 RDAP 已明确查无 → 判定为可注册
+    if (!hasUsefulData(legacy) && rdap.status === 'notfound') {
+      return {
+        domainName: normalized,
+        isAvailable: true,
+        availability: 'available',
+        registrar: {},
+        registrant: {},
+        elapsedMs: Date.now() - start,
+      }
+    }
     legacy.elapsedMs = Date.now() - start
     return legacy
   } catch (err) {
-    // 两种方式都失败时，抛出可读错误
+    // WHOIS 失败，但 RDAP 已明确 404（对 gTLD 权威）→ 直接判定为可注册，
+    // 避免因托管环境屏蔽端口 43 而误报"查询失败"
+    if (rdap.status === 'notfound') {
+      return {
+        domainName: normalized,
+        isAvailable: true,
+        availability: 'available',
+        registrar: {},
+        registrant: {},
+        elapsedMs: Date.now() - start,
+        source: 'rdap',
+      }
+    }
+    // 两种方式都失败且无法判定时，抛出可读错误
     throw new Error(
       `无法查询该域名信息（RDAP 与 WHOIS 均未返回数据）：${
         err instanceof Error ? err.message : String(err)
