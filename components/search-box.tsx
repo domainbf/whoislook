@@ -3,6 +3,7 @@
 import { Loader2, Search, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { normalizeDomain } from '@/lib/normalize-domain'
 import { addHistory } from '@/lib/search-history'
 
 export default function SearchBox() {
@@ -34,7 +35,7 @@ export default function SearchBox() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    const domain = value.trim().toLowerCase()
+    const domain = normalizeDomain(value)
     if (!domain || loading) return
     setLoading(true)
     addHistory(domain)

@@ -103,13 +103,13 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
       {/* 概要卡 */}
       <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="pointer-events-none absolute right-4 top-4 h-32 w-32 opacity-60 sm:h-40 sm:w-40">
+        <div className="pointer-events-none absolute right-4 top-4 h-28 w-28 opacity-60 sm:h-36 sm:w-36">
           <Image
             src="/globe-wireframe.png"
             alt=""
             width={160}
             height={160}
-            className="h-full w-full object-contain dark:opacity-40 dark:invert"
+            className="h-full w-full animate-spin-slow object-contain dark:opacity-40 dark:invert"
           />
         </div>
 
@@ -120,7 +120,7 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
             </span>
           </div>
 
-          <h1 className="mt-4 break-all text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+          <h1 className="mt-3 break-all text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             {displayName}
           </h1>
 
@@ -148,22 +148,22 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
           {/* 日期 */}
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-border pt-6">
             <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">创建日期</p>
-              <p className="mt-1.5 w-fit max-w-full truncate border-b border-dashed border-border pb-1 font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              <p className="text-xs text-muted-foreground">创建日期</p>
+              <p className="mt-1 w-fit max-w-full truncate border-b border-dashed border-border pb-0.5 font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 {formatDate(data.creationDate)}
               </p>
               {pastRelative(data.creationDate) && (
-                <p className="mt-1.5 text-xs text-muted-foreground">{pastRelative(data.creationDate)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{pastRelative(data.creationDate)}</p>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">到期日期</p>
-              <p className="mt-1.5 w-fit max-w-full truncate border-b border-dashed border-border pb-1 font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              <p className="text-xs text-muted-foreground">到期日期</p>
+              <p className="mt-1 w-fit max-w-full truncate border-b border-dashed border-border pb-0.5 font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 {formatDate(data.expiryDate)}
               </p>
               {expiryDays !== undefined && (
                 <p
-                  className={`mt-1.5 text-xs font-medium ${
+                  className={`mt-1 text-xs font-medium ${
                     expired ? 'text-destructive' : 'text-success'
                   }`}
                 >
@@ -172,12 +172,12 @@ export default function WhoisResult({ domain, data }: { domain: string; data: Wh
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">更新日期</p>
-              <p className="mt-1.5 w-fit max-w-full truncate border-b border-dashed border-border pb-1 font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              <p className="text-xs text-muted-foreground">更新日期</p>
+              <p className="mt-1 w-fit max-w-full truncate border-b border-dashed border-border pb-0.5 font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 {formatDate(data.updatedDate)}
               </p>
               {pastRelative(data.updatedDate) && (
-                <p className="mt-1.5 text-xs text-muted-foreground">{pastRelative(data.updatedDate)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{pastRelative(data.updatedDate)}</p>
               )}
             </div>
           </div>

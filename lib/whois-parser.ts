@@ -106,16 +106,54 @@ function humanizeStatus(status?: string[]): string[] {
   return (status ?? []).map((s) => s.trim()).filter(Boolean)
 }
 
-/** 从原始 WHOIS 文本中读取某个字段的第一个匹配值（支持多个候选键名） */
+const REDACTED_RE =
+  /^(redacted|not disclosed|data protected|not available|withheld|n\/a|none|private|statutory masking enabled)\b/i
+
+/** 转义正则特殊字符，允许键名里包含空格/括号等 */
+function escapeKey(key: string): string {
+  return key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * 从原始 WHOIS 文本中读取某个字段的第一个匹配值（支持多个候选键名）。
+ * 兼容以 ":" 或空白分隔的不规则 ccTLD 格式（如 .jp / .de / .fr）。
+ */
 function textField(text: string, keys: string[]): string | undefined {
   for (const key of keys) {
-    const re = new RegExp(`^\\s*${key}\\s*:\\s*(.+?)\\s*$`, 'im')
+    const k = escapeKey(key)
+    // 同时兼容 "key: value" 与 "key   value"（部分 ccTLD 用制表符/空格对齐）
+    const re = new RegExp(`^\\s*\\[?${k}\\]?\\s*[:：]?[\\t ]+(.+?)\\s*$`, 'im')
     const m = text.match(re)
-    if (m?.[1] && m[1].trim() && !/^(redacted|not disclosed|data protected)/i.test(m[1].trim())) {
+    if (m?.[1] && m[1].trim() && !REDACTED_RE.test(m[1].trim())) {
       return m[1].trim()
     }
   }
   return undefined
+}
+
+/** 尝试把各类 ccTLD 日期格式规范化为 ISO（无法识别则原样返回） */
+function normalizeDate(value?: string): string | undefined {
+  if (!value) return undefined
+  const v = value.trim()
+  // 已是 ISO 或标准可解析格式
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v
+  // DD.MM.YYYY 或 DD/MM/YYYY（.de/.ru 等常见）
+  let m = v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/)
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+  // YYYY.MM.DD 或 YYYY/MM/DD（.jp 等）
+  m = v.match(/^(\d{4})[.\/](\d{1,2})[.\/](\d{1,2})/)
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+  // DD-MMM-YYYY（如 05-Jan-2024）
+  const months: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+  }
+  m = v.match(/^(\d{1,2})[-\s]([a-z]{3})[-\s](\d{4})/i)
+  if (m) {
+    const mo = months[m[2].toLowerCase()]
+    if (mo) return `${m[3]}-${mo}-${m[1].padStart(2, '0')}`
+  }
+  return v
 }
 
 /** 从原始 WHOIS 文本中读取某个字段的所有匹配值（如 name server、status） */
@@ -141,7 +179,7 @@ export function parseWhoisText(domain: string, raw: string): WhoisData {
 
   // 判断域名是否未注册（可注册）
   const notFound =
-    /(No match for|NOT FOUND|No Data Found|Domain not found|No entries found|is free|Status:\s*free)/i.test(
+    /(No match for|NOT FOUND|No Data Found|Domain not found|No entries found|is free|Status:\s*free|No such domain|not registered|Domain Status:\s*No Object Found|available for registration|nothing found)/i.test(
       text,
     )
   if (notFound) {
@@ -154,42 +192,91 @@ export function parseWhoisText(domain: string, raw: string): WhoisData {
     .filter(Boolean)
 
   return {
-    domainName: (textField(text, ['Domain Name', 'domain']) ?? domain).toLowerCase(),
-    creationDate: textField(text, [
-      'Creation Date',
-      'Created On',
-      'created',
-      'Registration Time',
-      'Registered on',
-    ]),
-    expiryDate: textField(text, [
-      'Registry Expiry Date',
-      'Expiration Date',
-      'Expiry Date',
-      'paid-till',
-      'Expiration Time',
-    ]),
-    updatedDate: textField(text, ['Updated Date', 'Last Modified', 'changed', 'Last Updated']),
-    dnssec: textField(text, ['DNSSEC']),
-    registryDomainId: textField(text, ['Registry Domain ID']),
+    domainName: (
+      textField(text, ['Domain Name', 'domain', 'Domain', 'domain name']) ?? domain
+    ).toLowerCase(),
+    creationDate: normalizeDate(
+      textField(text, [
+        'Creation Date',
+        'Created On',
+        'Created Date',
+        'created',
+        'Registration Time',
+        'Registration Date',
+        'Registered on',
+        'Registered',
+        'Domain Registration Date',
+        'record created',
+        'Registered Date',
+        '[Registered Date]',
+      ]),
+    ),
+    expiryDate: normalizeDate(
+      textField(text, [
+        'Registry Expiry Date',
+        'Expiration Date',
+        'Registrar Registration Expiration Date',
+        'Expiry Date',
+        'Expiry date',
+        'expires',
+        'expire',
+        'paid-till',
+        'Expiration Time',
+        'Domain Expiration Date',
+        'renewal date',
+        '[Expires on]',
+      ]),
+    ),
+    updatedDate: normalizeDate(
+      textField(text, [
+        'Updated Date',
+        'Last Modified',
+        'Last Updated',
+        'last-update',
+        'changed',
+        'Modified',
+        'Domain Last Updated Date',
+        '[Last Updated]',
+      ]),
+    ),
+    dnssec: textField(text, ['DNSSEC', 'DNSSEC signed', 'dnssec']),
+    registryDomainId: textField(text, ['Registry Domain ID', 'Domain ID']),
     whoisServer: textField(text, ['Registrar WHOIS Server', 'WHOIS Server', 'whois']),
     source: 'whois',
     registrar: {
-      name: textField(text, ['Registrar', 'Sponsoring Registrar', 'registrar']),
-      website: textField(text, ['Registrar URL', 'Registrar Web', 'url']),
-      email: textField(text, ['Registrar Abuse Contact Email']),
-      phone: textField(text, ['Registrar Abuse Contact Phone']),
-      ianaId: textField(text, ['Registrar IANA ID']),
+      name: textField(text, [
+        'Registrar',
+        'Sponsoring Registrar',
+        'Registrar Name',
+        'registrar',
+        'Registration Service Provider',
+      ]),
+      website: textField(text, ['Registrar URL', 'Registrar Web', 'Registrar URL (registration services)', 'url']),
+      email: textField(text, ['Registrar Abuse Contact Email', 'Abuse Contact Email']),
+      phone: textField(text, ['Registrar Abuse Contact Phone', 'Abuse Contact Phone']),
+      ianaId: textField(text, ['Registrar IANA ID', 'IANA ID']),
     },
     registrant: {
-      name: textField(text, ['Registrant Name', 'Registrant']),
-      organization: textField(text, ['Registrant Organization', 'org']),
-      email: textField(text, ['Registrant Email']),
-      phone: textField(text, ['Registrant Phone']),
-      country: textField(text, ['Registrant Country']),
+      name: textField(text, ['Registrant Name', 'Registrant', 'Registrant Contact Name', 'owner']),
+      organization: textField(text, [
+        'Registrant Organization',
+        'Registrant Organisation',
+        'org',
+        'Organization',
+      ]),
+      email: textField(text, ['Registrant Email', 'Registrant Contact Email']),
+      phone: textField(text, ['Registrant Phone', 'Registrant Contact Phone']),
+      country: textField(text, ['Registrant Country', 'Registrant Country/Economy', 'country']),
     },
     domainStatus: status,
-    nameServers: textFieldAll(text, ['Name Server', 'Nameserver', 'nserver', 'ns']),
+    nameServers: textFieldAll(text, [
+      'Name Server',
+      'Nameserver',
+      'Name Servers',
+      'nserver',
+      'ns',
+      'Domain servers in listed order',
+    ]),
     isAvailable: false,
     rawText: text,
   }

@@ -3,6 +3,7 @@ import RecordHistory from '@/components/record-history'
 import SearchBox from '@/components/search-box'
 import SiteHeader from '@/components/site-header'
 import WhoisResult from '@/components/whois-result'
+import { normalizeDomain } from '@/lib/normalize-domain'
 import { lookupDomain } from '@/lib/whois'
 import type { WhoisData } from '@/lib/whois-parser'
 
@@ -12,7 +13,7 @@ export default async function Page({
   params: Promise<{ domain: string }>
 }) {
   const { domain } = await params
-  const decoded = decodeURIComponent(domain)
+  const decoded = normalizeDomain(decodeURIComponent(domain))
 
   let data: WhoisData | null = null
   let error: string | null = null
