@@ -1,56 +1,60 @@
-import { parseWhoisData } from '@/lib/whois-parser';
+import { AlertTriangle } from 'lucide-react'
+import RecordHistory from '@/components/record-history'
+import SearchBox from '@/components/search-box'
+import SiteHeader from '@/components/site-header'
+import WhoisResult from '@/components/whois-result'
+import { getLang } from '@/lib/get-lang'
+import { createT } from '@/lib/i18n'
+import { normalizeDomain } from '@/lib/normalize-domain'
+import { lookupDomain } from '@/lib/whois'
+import type { WhoisData } from '@/lib/whois-parser'
 
 export default async function ResultsPage({
   searchParams,
 }: {
-  searchParams?: { domain?: string }
+  searchParams?: Promise<{ domain?: string }>
 }) {
-  const domain = searchParams?.domain;
+  const raw = (await searchParams)?.domain
+  const domain = raw ? normalizeDomain(raw) : undefined
+  const t = createT(await getLang())
+
   if (!domain) {
-    return <div className="text-center py-10">请输入域名</div>;
+    return (
+      <main className="min-h-dvh bg-dots">
+        <SiteHeader />
+        <div className="mx-auto mt-8 max-w-2xl px-4">
+          <SearchBox />
+        </div>
+      </main>
+    )
   }
 
-  // 注意：如需兼容 SSR，请确保 fetch 可以在服务端用（如 http://127.0.0.1:3000/api/whois）
-  const response = await fetch(`/api/whois?domain=${domain}`, { cache: "no-store" });
-  const whoisRaw = await response.text();
-  const whois = parseWhoisData(whoisRaw);
+  let data: WhoisData | null = null
+  let error: string | null = null
+
+  try {
+    data = await lookupDomain(domain)
+  } catch (err) {
+    error = err instanceof Error ? err.message : '查询失败，请稍后重试'
+  }
 
   return (
-    <div className="max-w-2xl mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-8 text-center">WHOIS查询结果</h1>
-      <section className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">注册商信息</h2>
-        <ul>
-          <li>名称：{whois.registrar.name || '未知'}</li>
-          <li>网址：{whois.registrar.website || '未知'}</li>
-          <li>邮箱：{whois.registrar.email || '未知'}</li>
-          <li>电话：{whois.registrar.phone || '未知'}</li>
-        </ul>
-      </section>
-      <section className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">注册人信息</h2>
-        <ul>
-          <li>名称：{whois.registrant.name || '未知'}</li>
-          <li>邮箱：{whois.registrant.email || '未知'}</li>
-          <li>电话：{whois.registrant.phone || '未知'}</li>
-        </ul>
-      </section>
-      <section className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">域名状态</h2>
-        <ul>
-          {whois.domainStatus?.length
-            ? whois.domainStatus.map((s, i) => <li key={i}>{s}</li>)
-            : <li>未知</li>}
-        </ul>
-      </section>
-      <section className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-2">Name Servers</h2>
-        <ul>
-          {whois.nameServers?.length
-            ? whois.nameServers.map((ns, i) => <li key={i}>{ns}</li>)
-            : <li>未知</li>}
-        </ul>
-      </section>
-    </div>
-  );
+    <main className="min-h-dvh bg-dots">
+      <SiteHeader />
+      <RecordHistory domain={domain} />
+      <div className="mx-auto mt-8 max-w-2xl px-4">
+        <SearchBox />
+      </div>
+      {error && (
+        <div className="mx-auto max-w-2xl px-4 py-8">
+          <div className="flex flex-col items-center rounded-3xl border border-destructive/30 bg-destructive/5 p-10 text-center">
+            <AlertTriangle className="h-12 w-12 text-destructive" aria-hidden="true" />
+            <h1 className="mt-4 text-xl font-bold text-foreground">{t('lookupFailed')}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          </div>
+        </div>
+      )}
+      {data !== null && <WhoisResult domain={domain} data={data} />}
+    </main>
+  )
 }

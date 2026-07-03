@@ -1,0 +1,60 @@
+# Dependabot 自动依赖更新配置
+# 文档: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # npm/pnpm 依赖更新
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    # 一次最多打开的 PR 数，避免刷屏
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+    # 安全更新始终优先，同时把常规更新按类型分组，减少 PR 数量
+    groups:
+      # Next.js / React 核心框架单独分组，便于重点验证
+      next-react:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "eslint-config-next"
+          - "@types/react"
+          - "@types/react-dom"
+      # 其余生产依赖的补丁与次要版本合并成一个 PR
+      production-minor-patch:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+        exclude-patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+      # 开发依赖的补丁与次要版本合并成一个 PR
+      development-minor-patch:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions 工作流本身的更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"

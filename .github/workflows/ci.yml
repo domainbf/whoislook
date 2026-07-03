@@ -1,0 +1,47 @@
+name: CI
+
+# 在 push 到主分支以及所有 PR（包括 Dependabot 的更新 PR）时运行，
+# 用于在合并/部署前校验依赖更新不会破坏构建。
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+# 同一分支的新提交会取消上一个仍在运行的任务，节省资源
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 构建校验
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 类型检查
+        run: pnpm run typecheck
+
+      - name: Lint 检查
+        run: pnpm run lint
+
+      - name: 生产构建
+        run: pnpm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

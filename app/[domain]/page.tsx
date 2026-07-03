@@ -1,6 +1,13 @@
-import Header from '@/components/header'
-import { whois } from '@/lib/whois'
-import { unstable_cache } from 'next/cache'
+import { AlertTriangle } from 'lucide-react'
+import RecordHistory from '@/components/record-history'
+import SearchBox from '@/components/search-box'
+import SiteHeader from '@/components/site-header'
+import WhoisResult from '@/components/whois-result'
+import { getLang } from '@/lib/get-lang'
+import { createT } from '@/lib/i18n'
+import { normalizeDomain } from '@/lib/normalize-domain'
+import { lookupDomain } from '@/lib/whois'
+import type { WhoisData } from '@/lib/whois-parser'
 
 export default async function Page({
   params,
@@ -8,22 +15,37 @@ export default async function Page({
   params: Promise<{ domain: string }>
 }) {
   const { domain } = await params
+  const decoded = normalizeDomain(decodeURIComponent(domain))
+  const t = createT(await getLang())
 
-  const data = unstable_cache(async () => whois(domain), [domain], {
-    revalidate: 3600,
-  })()
+  let data: WhoisData | null = null
+  let error: string | null = null
+
+  try {
+    data = await lookupDomain(decoded)
+  } catch (err) {
+    error = err instanceof Error ? err.message : '查询失败，请稍后重试'
+  }
 
   return (
-    <>
-      <Header />
-      {data && (
-        <div className='max-w-3xl mx-auto p-4'>
-          <h1 className='text-3xl font-bold text-blue-600'>
-            WHOIS Lookup for {domain}
-          </h1>
-          <pre>{data}</pre>
+    <main className="min-h-dvh bg-dots">
+      <SiteHeader />
+      <RecordHistory domain={decoded} />
+
+      <div className="mx-auto mt-8 max-w-2xl px-4">
+        <SearchBox />
+      </div>
+
+      {error && (
+        <div className="mx-auto max-w-2xl px-4 py-8">
+          <div className="flex flex-col items-center rounded-3xl border border-destructive/30 bg-destructive/5 p-10 text-center">
+            <AlertTriangle className="h-12 w-12 text-destructive" aria-hidden="true" />
+            <h1 className="mt-4 text-xl font-bold text-foreground">{t('lookupFailed')}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          </div>
         </div>
       )}
-    </>
+      {data !== null && <WhoisResult domain={decoded} data={data} />}
+    </main>
   )
 }
