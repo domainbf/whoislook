@@ -1,55 +1,51 @@
-import { parseWhoisData } from '@/lib/whois-parser';
-import { whois as whoisLookup } from '@/lib/whois';
+import { parseWhoisData } from '@/lib/whois-parser'
+import { whois as whoisLookup } from '@/lib/whois'
+import WhoisResult from '@/components/whois-result'
+import Header from '@/components/header'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function ResultsPage({
   searchParams,
 }: {
   searchParams?: Promise<{ domain?: string }>
 }) {
-  const domain = (await searchParams)?.domain;
+  const domain = (await searchParams)?.domain
+
   if (!domain) {
-    return <div className="text-center py-10">请输入域名</div>;
+    return (
+      <>
+        <Header />
+        <div className="mx-auto max-w-4xl px-4 py-8 text-center text-muted-foreground">
+          请输入域名
+        </div>
+      </>
+    )
   }
 
-  const whoisRaw = await whoisLookup(domain);
-  const whois = parseWhoisData(whoisRaw);
+  let raw: string | null = null
+  let error: string | null = null
+
+  try {
+    raw = await whoisLookup(domain)
+  } catch (err) {
+    error = err instanceof Error ? err.message : '查询失败，请稍后重试'
+  }
 
   return (
-    <div className="max-w-2xl mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-8 text-center">WHOIS查询结果</h1>
-      <section className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">注册商信息</h2>
-        <ul>
-          <li>名称：{whois.registrar.name || '未知'}</li>
-          <li>网址：{whois.registrar.website || '未知'}</li>
-          <li>邮箱：{whois.registrar.email || '未知'}</li>
-          <li>电话：{whois.registrar.phone || '未知'}</li>
-        </ul>
-      </section>
-      <section className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">注册人信息</h2>
-        <ul>
-          <li>名称：{whois.registrant.name || '未知'}</li>
-          <li>邮箱：{whois.registrant.email || '未知'}</li>
-          <li>电话：{whois.registrant.phone || '未知'}</li>
-        </ul>
-      </section>
-      <section className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">域名状态</h2>
-        <ul>
-          {whois.domainStatus?.length
-            ? whois.domainStatus.map((s, i) => <li key={i}>{s}</li>)
-            : <li>未知</li>}
-        </ul>
-      </section>
-      <section className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-2">Name Servers</h2>
-        <ul>
-          {whois.nameServers?.length
-            ? whois.nameServers.map((ns, i) => <li key={i}>{ns}</li>)
-            : <li>未知</li>}
-        </ul>
-      </section>
-    </div>
-  );
+    <>
+      <Header />
+      {error && (
+        <div className="mx-auto max-w-4xl px-4 py-8">
+          <div className="flex flex-col items-center rounded-xl border border-destructive/30 bg-destructive/5 p-10 text-center">
+            <AlertTriangle className="h-12 w-12 text-destructive" aria-hidden="true" />
+            <h1 className="mt-4 text-xl font-bold text-foreground">查询失败</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          </div>
+        </div>
+      )}
+      {raw !== null && (
+        <WhoisResult domain={domain} data={parseWhoisData(raw)} raw={raw} />
+      )}
+    </>
+  )
 }

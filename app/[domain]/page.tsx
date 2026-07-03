@@ -1,6 +1,9 @@
 import Header from '@/components/header'
+import WhoisResult from '@/components/whois-result'
 import { whois } from '@/lib/whois'
+import { parseWhoisData } from '@/lib/whois-parser'
 import { unstable_cache } from 'next/cache'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function Page({
   params,
@@ -9,20 +12,33 @@ export default async function Page({
 }) {
   const { domain } = await params
 
-  const data = unstable_cache(async () => whois(domain), [domain], {
+  const getData = unstable_cache(async () => whois(domain), [domain], {
     revalidate: 3600,
-  })()
+  })
+
+  let raw: string | null = null
+  let error: string | null = null
+
+  try {
+    raw = await getData()
+  } catch (err) {
+    error = err instanceof Error ? err.message : '查询失败，请稍后重试'
+  }
 
   return (
     <>
       <Header />
-      {data && (
-        <div className='max-w-3xl mx-auto p-4'>
-          <h1 className='text-3xl font-bold text-blue-600'>
-            WHOIS Lookup for {domain}
-          </h1>
-          <pre>{data}</pre>
+      {error && (
+        <div className="mx-auto max-w-4xl px-4 py-8">
+          <div className="flex flex-col items-center rounded-xl border border-destructive/30 bg-destructive/5 p-10 text-center">
+            <AlertTriangle className="h-12 w-12 text-destructive" aria-hidden="true" />
+            <h1 className="mt-4 text-xl font-bold text-foreground">查询失败</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          </div>
         </div>
+      )}
+      {raw !== null && (
+        <WhoisResult domain={domain} data={parseWhoisData(raw)} raw={raw} />
       )}
     </>
   )
